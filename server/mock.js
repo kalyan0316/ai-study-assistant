@@ -47,7 +47,8 @@ export function buildMockSet(notes, cardCount, quizCount) {
     facts.push(f);
   }
 
-  const title = notes.split(/\s+/).slice(0, 5).join(' ').replace(/[^\w\s'-]/g, '') || 'Study set';
+  const words = notes.replace(/[^\w\s'-]/g, ' ').split(/\s+/).filter(Boolean);
+  const title = words.length ? `${words.slice(0, 5).join(' ')}${words.length > 5 ? '…' : ''}` : 'Study set';
   const cards = facts.slice(0, cardCount).map(([front, back]) => ({ front, back }));
 
   const quiz = facts.slice(0, quizCount).map(([term, definition], i) => {
@@ -60,11 +61,11 @@ export function buildMockSet(notes, cardCount, quizCount) {
       question: `Which term matches: “${definition}”?`,
       options: rotated,
       answerIndex: rotated.indexOf(term),
-      explanation: `${term}: ${definition}.`,
+      explanation: `${term}: ${definition.replace(/\.$/, '')}.`,
     };
   });
 
-  return { title: `${title} (mock)`, cards, quiz };
+  return { title: `Sample set: ${title}`, cards, quiz };
 }
 
 const sleep = (ms, signal) =>
