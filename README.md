@@ -33,12 +33,20 @@ Any OpenAI-compatible chat-completions API works. Set three values in `.env`:
 
 | Provider | `LLM_BASE_URL` | `LLM_MODEL` |
 | --- | --- | --- |
-| Groq (free tier) | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Groq (free tier, default) | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` |
 | Gemini (free tier) | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.5-flash` |
 | OpenRouter | `https://openrouter.ai/api/v1` | any model id |
 | Ollama (local) | `http://localhost:11434/v1` | e.g. `llama3.1` (key: `ollama`) |
 
 …plus `LLM_API_KEY`. The key is only read by the Node server; the browser never sees it.
+
+Quick start with Groq: create a free key at https://console.groq.com/keys, then put it in `.env`:
+
+```
+LLM_API_KEY=gsk_...your key...
+```
+
+and run `npm start` again. The header shows the model name instead of "Mock mode" when the key is picked up.
 
 ## Features
 
@@ -65,7 +73,8 @@ browser ──POST /api/generate──▶ server ──▶ LLM
 
 **Server (`server/`)**
 - Prompt lives on the server; user notes are wrapped in `<notes>` and the model is told to treat them as data.
-- JSON mode (`response_format: json_object`) when the provider supports it.
+- JSON mode (`response_format: json_object`) when the provider supports it; if the model rejects it, the server retries once without it (the client-side parser copes with plain text).
+- A retired/unknown model gives a clear "change LLM_MODEL" message instead of a generic error. (This happened during development: Groq retired the Llama model I started with.)
 - 40 s upstream timeout; upstream call is aborted if the browser disconnects (so cancelled/superseded requests stop costing tokens).
 - Provider errors are mapped to clear codes: `rate-limited`, `auth`, `timeout`, `upstream-error`, … with a `retryable` flag.
 - Input limits (15k chars), request body cap, and a small per-IP rate limit.
@@ -141,13 +150,15 @@ tests/studySet.test.js    parser/validator tests (node --test, no extra deps)
 
 ## AI usage
 
-<!-- Edit this section so it honestly reflects how YOU used AI. -->
-I used Claude (Anthropic) as a coding assistant on this project: to scaffold the server and components,
-draft the parser and its test cases, and write parts of this README. I reviewed and tested the code,
-and I can explain the design choices: why parsing happens client-side, how stale responses are prevented
-(request ids + AbortController), and why invalid items are dropped instead of rejecting the whole response.
+I used Claude (Anthropic) heavily on this project. It generated most of the code (server, parser, React
+components, styles), the unit tests and the first draft of this README from the assignment PDF.
+I ran the app locally, tested it in mock mode and with Groq, and worked through setup problems
+(the original Groq model had been retired, so the default model and error handling were updated).
+I've read through the code and can explain the main decisions: why parsing and validation happen
+client-side, how stale responses are prevented (request ids + AbortController), and why broken
+cards/questions are dropped individually instead of rejecting the whole response.
 
 ## Time spent
 
-<!-- Fill in honestly -->
-About _N_ hours.
+About 4 hours in one sitting, most of it on setup, testing and fixing the model configuration
+rather than writing code by hand.

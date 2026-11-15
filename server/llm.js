@@ -16,14 +16,28 @@ export class UpstreamError extends Error {
 export function llmConfig() {
   return {
     baseUrl: (process.env.LLM_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
-    model: process.env.LLM_MODEL || 'llama-3.3-70b-versatile',
+    model: process.env.LLM_MODEL || 'openai/gpt-oss-120b',
     apiKey: process.env.LLM_API_KEY || '',
     jsonMode: process.env.LLM_JSON_MODE !== 'false',
   };
 }
 
-export async function callLLM(messages, { signal, timeoutMs = 40_000 } = {}) {
-  const { baseUrl, model, apiKey, jsonMode } = llmConfig();
+export async function callLLM(messages, opts = {}) {
+  const { jsonMode } = llmConfig();
+  try {
+    return await requestCompletion(messages, { ...opts, jsonMode });
+  } catch (err) {
+    // Some models/providers reject JSON mode. Our parser copes with plain text, so retry once without it.
+    if (jsonMode && err.code === 'json-mode-unsupported') {
+      console.warn('[llm] provider rejected JSON mode, retrying without it');
+      return requestCompletion(messages, { ...opts, jsonMode: false });
+    }
+    throw err;
+  }
+}
+
+async function requestCompletion(messages, { signal, timeoutMs = 40_000, jsonMode }) {
+  const { baseUrl, model, apiKey } = llmConfig();
 
   // One controller that fires on either our timeout or the browser disconnecting.
   const controller = new AbortController();
@@ -64,8 +78,20 @@ export async function callLLM(messages, { signal, timeoutMs = 40_000 } = {}) {
     if (res.status === 401 || res.status === 403) {
       throw new UpstreamError('auth', 'The server’s AI API key was rejected. Check LLM_API_KEY in .env.', 502, false);
     }
-    if (res.status === 400 && /response_format/i.test(detail)) {
+    if (res.status === 400 && /json_validate_failed|failed to generate json/i.test(detail)) {
+      // Provider-side JSON mode caught the model writing invalid JSON. A retry usually works.
+      throw new UpstreamError('upstream-bad-output', 'The AI produced invalid JSON. Please try again.', 502, true);
+    }
+    if (res.status === 400 && /response_format|json mode|json_object/i.test(detail)) {
       throw new UpstreamError('json-mode-unsupported', 'This model does not support JSON mode. Set LLM_JSON_MODE=false in .env.', 502, false);
+    }
+    if (res.status === 404 || /model_not_found|decommissioned|does not exist|not found/i.test(detail)) {
+      throw new UpstreamError(
+        'model-unavailable',
+        `The AI model "${model}" isn't available from this provider. Change LLM_MODEL in .env (see .env.example).`,
+        502,
+        false,
+      );
     }
     throw new UpstreamError('upstream-error', `The AI provider returned an error (${res.status}).`, 502, res.status >= 500);
   }

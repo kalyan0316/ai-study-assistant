@@ -123,6 +123,8 @@ export function describeError(err, abortReason) {
       'upstream-error': 'The AI service had a problem',
       'upstream-unreachable': 'Couldn’t reach the AI service',
       'upstream-bad-body': 'The AI service had a problem',
+      'upstream-bad-output': 'The AI sent back something we couldn’t use',
+      'model-unavailable': 'Server configuration problem',
       'json-mode-unsupported': 'Server configuration problem',
       'notes-too-short': 'Add some notes first',
       'notes-too-long': 'Notes are too long',
