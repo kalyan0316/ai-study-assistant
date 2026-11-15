@@ -1,0 +1,25 @@
+{
+  "name": "ai-study-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Paste notes or a topic, get AI-generated flashcards and a quiz you can actually study with.",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "start": "vite build && node server/index.js",
+    "dev": "node scripts/dev.js",
+    "build": "vite build",
+    "serve": "node server/index.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.0"
+  }
+}
